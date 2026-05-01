@@ -185,6 +185,9 @@ function ClosetScreen({ items, upsertItem, deleteItem, notify }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <h2>The Closet</h2>
           <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="btn btn-outline" style={{ color: 'var(--rose)' }} onClick={() => { if(window.confirm("Are you sure? This will 'forget' your entire wardrobe.")) { setItems([]); setSaved([]); notify("Wardrobe wiped."); } }}>
+              <Trash2 size={18} /> Reset
+            </button>
             <button className="btn btn-outline" onClick={() => setEditing({ id: 'new', name: '', category: 'Shirts', color: 'Black', value: 0, wearCount: 0, occasions: [], seasons: [], formality: 3 })}>
               <Plus size={18} /> Manual
             </button>
