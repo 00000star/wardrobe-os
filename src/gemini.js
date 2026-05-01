@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const API_KEY = "YOUR_GEMINI_API_KEY"; // Replace with your actual key or use env
+const API_KEY = "AIzaSyDLh6o2E82_vMX-SrqjGHA7LK_rD4Aj-4Q"; // Automatically generated from gcloud session
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 export async function getAISuggestion(wardrobe, userRequest, season, weather, mood) {
