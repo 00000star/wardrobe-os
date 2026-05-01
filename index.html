@@ -2,12 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wardrobe OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Starlet Wardrobe</title>
+    <link rel="manifest" href="/wardrobe-os/manifest.json" />
+    <meta name="theme-color" content="#00F2FF" />
     <script type="module" crossorigin src="/wardrobe-os/assets/index-B4xKVsGz.js"></script>
     <link rel="stylesheet" crossorigin href="/wardrobe-os/assets/index-CDmscr0q.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/wardrobe-os/sw.js');
+        });
+      }
+    </script>
   </body>
 </html>
