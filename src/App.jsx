@@ -788,6 +788,12 @@ function ItemModal({ item, onSave, onClose, onDelete, logWear }) {
 // ─────────────────────────────────────────────
 // STYLIST SCREEN
 // ─────────────────────────────────────────────
+import { getAISuggestion } from './gemini';
+
+// ... existing imports ...
+
+// ... (skipping to StylistScreen) ...
+
 function StylistScreen({ items, setSelected, setLastOutfit, goJudge, wearOutfit, saveToHistory }) {
   const [event,  setEvent]  = useState('Smart casual dinner');
   const [season, setSeason] = useState('All Season');
@@ -795,8 +801,27 @@ function StylistScreen({ items, setSelected, setLastOutfit, goJudge, wearOutfit,
   const [mood,   setMood]   = useState('');
   const [outfit, setOutfit] = useState(() => buildOutfit(items));
   const [saveName,setSaveName]=useState('');
+  const [loading, setLoading] = useState(false);
 
-  function generate() { setOutfit(buildOutfit(items, event, season, weather, mood)); }
+  async function generate() { 
+    setLoading(true);
+    const aiResult = await getAISuggestion(items, event, season, weather, mood);
+    
+    if (aiResult) {
+      const selectedItems = aiResult.itemIds.map(id => items.find(i => i.id === id)).filter(Boolean);
+      setOutfit({
+        title: aiResult.title,
+        confidence: aiResult.confidence,
+        items: selectedItems,
+        reasons: aiResult.reasons,
+        upgrades: aiResult.upgrades
+      });
+    } else {
+      // Fallback to local algorithm if AI fails
+      setOutfit(buildOutfit(items, event, season, weather, mood));
+    }
+    setLoading(false);
+  }
 
   function goToJudge() {
     setSelected(outfit.items.map(i=>i.id));
@@ -810,14 +835,17 @@ function StylistScreen({ items, setSelected, setLastOutfit, goJudge, wearOutfit,
       <section className="glass-panel stylist-command">
         <p className="eyebrow">Ask the stylist</p>
         <h3>Tell it the situation.</h3>
-        <p style={{marginTop:6,color:'var(--muted)'}}>It only uses your wardrobe.</p>
+        <p style={{marginTop:6,color:'var(--muted)'}}>Powered by Google Gemini AI.</p>
         <div className="big-input"><MessageSquareText size={20}/><textarea value={event} onChange={e=>setEvent(e.target.value)}/></div>
         <div className="control-grid">
           <label>Season<select value={season} onChange={e=>setSeason(e.target.value)}>{SEASONS.map(s=><option key={s}>{s}</option>)}</select></label>
           <label>Weather<input value={weather} onChange={e=>setWeather(e.target.value)} placeholder="e.g. warm, cold"/></label>
           <label>Mood<input value={mood} onChange={e=>setMood(e.target.value)} placeholder="e.g. confident"/></label>
         </div>
-        <button className="button primary wide" onClick={generate}><Sparkles size={18}/> Generate outfit</button>
+        <button className="button primary wide" onClick={generate} disabled={loading}>
+          {loading ? <RefreshCw className="spin" size={18}/> : <Sparkles size={18}/>} 
+          {loading ? ' Consulting Gemini...' : ' Generate outfit'}
+        </button>
       </section>
 
       {/* Phone mock */}
@@ -825,20 +853,24 @@ function StylistScreen({ items, setSelected, setLastOutfit, goJudge, wearOutfit,
         <div className="phone-status"><span>9:41</span><span>●●●</span></div>
         <div className="chat-screen">
           <div className="bubble user">{event}</div>
-          <div className="bubble ai">Got it. Here's a grounded outfit from your wardrobe for {shortOccasion(event)}.</div>
-          <div className="outfit-strip">
+          <div className="bubble ai">
+            {loading ? "Analyzing your wardrobe..." : `Got it. Here's a grounded outfit from your wardrobe for ${shortOccasion(event)}.`}
+          </div>
+          <div className="outfit-strip" style={{opacity: loading ? 0.5 : 1}}>
             {outfit.items.map(i=><MiniItem key={i.id} item={i}/>)}
           </div>
-          <div className="reason-card">
-            <strong>Why this works</strong>
-            {outfit.reasons.map(r=><p key={r}><Check size={14}/> {r}</p>)}
-          </div>
-          <div className="message-bar">Ask for a variation… <button onClick={generate}><Zap size={16}/></button></div>
+          {!loading && (
+            <div className="reason-card">
+              <strong>Why this works</strong>
+              {outfit.reasons.map(r=><p key={r}><Check size={14}/> {r}</p>)}
+            </div>
+          )}
+          <div className="message-bar">Ask for a variation… <button onClick={generate} disabled={loading}><Zap size={16}/></button></div>
         </div>
       </section>
 
       {/* Recommendation */}
-      <section className="glass-panel recommendation-panel">
+      <section className="glass-panel recommendation-panel" style={{opacity: loading ? 0.5 : 1}}>
         <div className="section-head">
           <div><p className="eyebrow">Recommended outfit</p><h3>{outfit.title}</h3></div>
           <div className="score-badge">{outfit.confidence}%</div>
