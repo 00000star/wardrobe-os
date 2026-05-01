@@ -84,22 +84,7 @@ function mkItem(name, category, color, occasions, seasons, formality, wearCount,
   };
 }
 
-const starterItems = [
-  mkItem('White Oxford Shirt',      'Shirts',      'White',    ['Smart Casual','Business Casual','Formal'],            ['All Season','Summer'], 4, 14, 38),
-  mkItem('Light Blue Shirt',        'Shirts',      'Blue',     ['Smart Casual','Business Casual'],                    ['All Season','Summer'], 3, 9,  30),
-  mkItem('Navy Polo',               'Shirts',      'Navy',     ['Casual','Smart Casual','Weekend'],                   ['Summer'],              2, 18, 24),
-  mkItem('Beige Chinos',            'Trousers',    'Beige',    ['Smart Casual','Business Casual','Weekend'],          ['All Season','Summer'], 3, 11, 32),
-  mkItem('Navy Chinos',             'Trousers',    'Navy',     ['Smart Casual','Business Casual'],                    ['All Season'],          4, 16, 36),
-  mkItem('Dark Jeans',              'Trousers',    'Navy',     ['Casual','Weekend'],                                  ['All Season','Winter'], 2, 21, 28),
-  mkItem('White Sneakers',          'Shoes',       'White',    ['Casual','Weekend','Smart Casual'],                   ['All Season'],          2, 30, 40),
-  mkItem('Brown Derby Shoes',       'Shoes',       'Brown',    ['Smart Casual','Business Casual','Formal'],           ['All Season'],          4, 8,  52),
-  mkItem('Navy Blazer',             'Jackets',     'Navy',     ['Smart Casual','Business Casual','Formal','Date Night'],['All Season','Winter'],5, 7,  85),
-  mkItem('Grey Knit Sweater',       'Knitwear',    'Grey',     ['Casual','Smart Casual'],                             ['Winter'],              3, 10, 34),
-  mkItem('Black Field Jacket',      'Jackets',     'Black',    ['Casual','Weekend'],                                  ['Rainy','Winter'],      2, 4,  48),
-  mkItem('Cream Lightweight Jacket','Jackets',     'Cream',    ['Smart Casual','Date Night'],                         ['Summer','All Season'], 3, 5,  60),
-  mkItem('Minimal Watch',           'Accessories', 'Brown',    ['Smart Casual','Business Casual','Formal','Date Night'],['All Season'],        4, 22, 25),
-  mkItem('Black Belt',              'Accessories', 'Black',    ['Business Casual','Formal'],                          ['All Season'],          4, 15, 18),
-];
+const starterItems = [];
 
 // ─────────────────────────────────────────────
 // LOCAL STORAGE HOOK
@@ -532,22 +517,40 @@ function ClosetScreen({ items, upsertItem, deleteItem, selected, setSelected, no
     return { ready, fav, totalVal, totalW };
   }, [items]);
 
+  const [analyzing, setAnalyzing] = useState(false);
+
   async function handleFiles(files) {
+    setAnalyzing(true);
+    notify(`Analyzing ${files.length} item${files.length > 1 ? 's' : ''}...`);
     for (const file of Array.from(files)) {
-      const dataUrl   = await fileToDataUrl(file);
-      const colorName = await estimateColorName(dataUrl);
-      const guess     = guessFromFilename(file.name);
-      const newItem   = {
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Math.random()),
-        image: dataUrl, color: colorName,
-        occasions: guess.occasions, seasons: guess.seasons,
-        formality: guess.formality, condition:'Ready',
-        favorite: false, wearCount: 0, value: 0,
-        lastWorn: 'Never', notes: '',
-        name: guess.name, category: guess.category,
-      };
-      upsertItem(newItem);
+      try {
+        const dataUrl = await fileToDataUrl(file);
+        const aiData = await analyzeImage(dataUrl);
+        
+        const newItem = {
+          id: crypto.randomUUID ? crypto.randomUUID() : String(Math.random()),
+          image: dataUrl,
+          name: aiData?.name || file.name.split('.')[0],
+          category: aiData?.category || 'Shirts',
+          color: aiData?.color || 'White',
+          occasions: aiData?.occasions || ['Casual'],
+          seasons: aiData?.seasons || ['All Season'],
+          formality: aiData?.formality || 3,
+          condition: 'Ready',
+          favorite: false,
+          wearCount: 0,
+          value: 0,
+          lastWorn: 'Never',
+          notes: '',
+        };
+        upsertItem(newItem);
+      } catch (err) {
+        console.error("AI Analysis failed:", err);
+        notify("Failed to analyze one or more items.");
+      }
     }
+    setAnalyzing(false);
+    notify("Wardrobe updated!");
   }
 
   function toggleSelect(id) {
@@ -567,8 +570,11 @@ function ClosetScreen({ items, upsertItem, deleteItem, selected, setSelected, no
           <p className="eyebrow">Wardrobe overview</p>
           <h3>{items.length} items cataloged</h3>
           <div className="hero-actions" style={{marginTop:14}}>
-            <button className="button primary" onClick={()=>fileRef.current.click()}><Camera size={16}/> Add clothing</button>
-            <button className="button ghost"   onClick={()=>setEditing({id:'new',name:'',category:'Shirts',color:'White',occasions:['Casual'],seasons:['All Season'],formality:2,condition:'Ready',favorite:false,wearCount:0,value:0,lastWorn:'Never',notes:'',image:''})}>
+            <button className="button primary" onClick={()=>fileRef.current.click()} disabled={analyzing}>
+              {analyzing ? <RefreshCw className="spin" size={16}/> : <Camera size={16}/>}
+              {analyzing ? " AI Analyzing..." : " Add clothing"}
+            </button>
+            <button className="button ghost" onClick={()=>setEditing({id:'new',name:'',category:'Shirts',color:'White',occasions:['Casual'],seasons:['All Season'],formality:2,condition:'Ready',favorite:false,wearCount:0,value:0,lastWorn:'Never',notes:'',image:''})}>
               <Plus size={16}/> Manual entry
             </button>
           </div>
@@ -788,7 +794,7 @@ function ItemModal({ item, onSave, onClose, onDelete, logWear }) {
 // ─────────────────────────────────────────────
 // STYLIST SCREEN
 // ─────────────────────────────────────────────
-import { getAISuggestion } from './gemini';
+import { getAISuggestion, analyzeImage } from './gemini';
 
 // ... existing imports ...
 
